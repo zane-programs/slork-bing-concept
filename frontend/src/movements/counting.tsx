@@ -2,7 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { MovementData } from "@shared/types";
 import { useBeatSubscription } from "../lib/beat";
-import { loadAudioBuffer, pickSupportedAudioUrl } from "../lib/audio";
+import {
+  loadAudioBuffer,
+  pickSupportedAudioUrl,
+  playSample,
+} from "../lib/audio";
 import { truemod } from "../lib/music";
 import styles from "./counting.module.css";
 
