@@ -12,7 +12,7 @@ const CLICK_DUR_SEC = 0.04;
 export function intensityToBpm(intensity: number): number {
   const clamped = Math.max(0, Math.min(1, intensity));
   return Math.round(
-    CLICKING_BPM_MIN + clamped * (CLICKING_BPM_MAX - CLICKING_BPM_MIN),
+    CLICKING_BPM_MIN + clamped * (CLICKING_BPM_MAX - CLICKING_BPM_MIN)
   );
 }
 

@@ -36,7 +36,7 @@ interface Props {
   setMovement: (movement: MovementId | null) => void;
   updateMovement: <K extends MovementId>(
     movement: K,
-    data: Partial<MovementData[K]>,
+    data: Partial<MovementData[K]>
   ) => void;
   setBeat: (bpm: number | null) => void;
 }
@@ -356,7 +356,7 @@ function CountingControls({
 
 function useCoalescedSlider<T>(
   serverValue: T,
-  send: (v: T) => void,
+  send: (v: T) => void
 ): {
   value: T;
   onChange: (v: T) => void;
@@ -410,7 +410,7 @@ function CountingBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 100;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v),
+    setBeat(v)
   );
   return (
     <div className={styles.sliderRow}>
@@ -440,7 +440,7 @@ function CountingGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("counting", { gain: v }),
+    updateMovement("counting", { gain: v })
   );
   return (
     <div className={styles.sliderRow}>
@@ -468,7 +468,7 @@ function CountingPitchSlider({
 }) {
   const serverSemis = pitchMultiplyToSemis(pitchMultiply);
   const { value, onChange } = useCoalescedSlider<number>(serverSemis, (v) =>
-    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) }),
+    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) })
   );
   const mult = semisToPitchMultiply(value);
   const sign = value > 0 ? "+" : "";

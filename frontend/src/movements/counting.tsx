@@ -174,7 +174,9 @@ function CountingStage({
         key={flashKey}
         // skip animation on mount
         className={
-          flashKey > 0 ? `${styles.flash} ${styles.flashAnimating}` : styles.flash
+          flashKey > 0
+            ? `${styles.flash} ${styles.flashAnimating}`
+            : styles.flash
         }
         aria-hidden
       />

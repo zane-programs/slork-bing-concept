@@ -73,7 +73,7 @@ export default class SocketManager {
   private handleClientMessage(
     socket: WebSocket,
     msg: ClientMessage,
-    t1: number,
+    t1: number
   ) {
     if (msg.type === "hello") {
       this.handleHello(socket, msg.clientId, msg.role);
@@ -104,7 +104,7 @@ export default class SocketManager {
   private handleHello(
     socket: WebSocket,
     offered: ClientId | undefined,
-    offeredRole: ClientRole | undefined,
+    offeredRole: ClientRole | undefined
   ) {
     const role: ClientRole =
       offeredRole === "conductor" ? "conductor" : "device";
@@ -146,7 +146,7 @@ export default class SocketManager {
     console.log(
       `Client ${id} connected as ${role}${
         index !== null ? ` (index ${index})` : ""
-      }${offered === id ? " - reused id" : ""}`,
+      }${offered === id ? " - reused id" : ""}`
     );
 
     this.send(socket, { type: "assigned", clientId: id, index, role });
@@ -195,7 +195,7 @@ export default class SocketManager {
 
   private updateMovement(
     id: MovementId,
-    patch: Partial<Record<string, unknown>>,
+    patch: Partial<Record<string, unknown>>
   ) {
     if (!this.state || this.state.movement !== id) return;
     const prev = this.state.data as Record<string, unknown>;

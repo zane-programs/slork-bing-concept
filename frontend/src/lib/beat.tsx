@@ -45,7 +45,9 @@ export function BeatProvider({
   bus: BeatBus;
   children: React.ReactNode;
 }) {
-  return <BeatBusContext.Provider value={bus}>{children}</BeatBusContext.Provider>;
+  return (
+    <BeatBusContext.Provider value={bus}>{children}</BeatBusContext.Provider>
+  );
 }
 
 export function useBeatSubscription(cb: Subscriber): void {
@@ -186,7 +188,9 @@ export function useBeat({
         }
         const stepsFromOrigin = nextBeat - originBeat;
         const wallMs = anchorMs + stepsFromOrigin * periodMs;
-        const audioTime = audioOn ? anchorAudioSec + stepsFromOrigin * periodSec : null;
+        const audioTime = audioOn
+          ? anchorAudioSec + stepsFromOrigin * periodSec
+          : null;
 
         const past = audioOn
           ? audioTime! < audioNow - PAST_SKIP_SEC
@@ -297,7 +301,9 @@ export function BeatIndicator({
       <div className={styles.row}>
         <span
           key={tick.beat}
-          className={isActive ? `${styles.dot} ${styles.dotActive}` : styles.dot}
+          className={
+            isActive ? `${styles.dot} ${styles.dotActive}` : styles.dot
+          }
         />
         <div className={styles.info}>
           <div>

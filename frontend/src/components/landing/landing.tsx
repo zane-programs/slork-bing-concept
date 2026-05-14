@@ -1,4 +1,4 @@
-import styles from "./landing.module.css"
+import styles from "./landing.module.css";
 
 export default function DeviceLanding({ onJoin }: { onJoin: () => void }) {
   return (

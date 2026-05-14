@@ -70,18 +70,18 @@ export function useSocket(role: ClientRole) {
 
   const setMovement = useCallback(
     (movement: MovementId | null) => send({ type: "set_movement", movement }),
-    [send],
+    [send]
   );
 
   const updateMovement = useCallback(
     <K extends MovementId>(movement: K, data: Partial<MovementData[K]>) =>
       send({ type: "update_movement", movement, data } as ClientMessage),
-    [send],
+    [send]
   );
 
   const setBeatBpm = useCallback(
     (bpm: number | null) => send({ type: "set_beat", bpm }),
-    [send],
+    [send]
   );
 
   const getServerTime = useCallback(() => Date.now() + offsetRef.current, []);
@@ -110,10 +110,7 @@ export function useSocket(role: ClientRole) {
       for (let i = 0; i < CLK_WARMUP_COUNT; i++) {
         timeouts.push(setTimeout(sendPing, i * CLK_WARMUP_INTERVAL_MS));
       }
-      steadyInterval = setInterval(
-        sendPing,
-        CLK_STEADY_INTERVAL_MS,
-      );
+      steadyInterval = setInterval(sendPing, CLK_STEADY_INTERVAL_MS);
     };
     socket.onclose = () => setIsConnected(false);
 
@@ -140,12 +137,12 @@ export function useSocket(role: ClientRole) {
         setState((prev) =>
           prev && prev.movement === msg.movement
             ? ({ movement: msg.movement, data: msg.data } as MovementState)
-            : prev,
+            : prev
         );
       } else if (msg.type === "time_pong") {
         const { t0, t1, t2 } = msg;
-        const rtt = (t3 - t0) - (t2 - t1);
-        const offset = ((t1 - t0) + (t2 - t3)) / 2;
+        const rtt = t3 - t0 - (t2 - t1);
+        const offset = (t1 - t0 + (t2 - t3)) / 2;
         const samples = samplesRef.current;
         samples.push({ offset, rtt });
         if (samples.length > CLK_SAMPLE_WINDOW) samples.shift();

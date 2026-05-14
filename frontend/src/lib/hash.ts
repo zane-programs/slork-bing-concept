@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export function useHash() {
   const [hash, setHash] = useState(() =>
-    typeof window === "undefined" ? "" : window.location.hash,
+    typeof window === "undefined" ? "" : window.location.hash
   );
 
   useEffect(() => {

@@ -13,7 +13,8 @@ export function unlockAudio(): AudioContext | null {
   }
   if (typeof window === "undefined") return null;
   const w = window as AudioWindow;
-  const Ctor: AudioCtor | undefined = window.AudioContext ?? w.webkitAudioContext;
+  const Ctor: AudioCtor | undefined =
+    window.AudioContext ?? w.webkitAudioContext;
   if (!Ctor) return null;
   ctx = new Ctor();
   if (ctx.state === "suspended") void ctx.resume();
@@ -40,7 +41,7 @@ export function playTone(
   audioTime: number,
   freq: number,
   durSec: number,
-  opts: ToneOpts = {},
+  opts: ToneOpts = {}
 ) {
   const t = Math.max(audioTime, ctx.currentTime);
   const type = opts.type ?? "sine";
@@ -65,9 +66,15 @@ export function playTone(
   osc.stop(noteEnd + 0.02);
 }
 
-const bufferCache = new WeakMap<AudioContext, Map<string, Promise<AudioBuffer>>>();
+const bufferCache = new WeakMap<
+  AudioContext,
+  Map<string, Promise<AudioBuffer>>
+>();
 
-export function loadAudioBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer> {
+export function loadAudioBuffer(
+  ctx: AudioContext,
+  url: string
+): Promise<AudioBuffer> {
   let perCtx = bufferCache.get(ctx);
   if (!perCtx) {
     perCtx = new Map();
@@ -87,9 +94,10 @@ export function loadAudioBuffer(ctx: AudioContext, url: string): Promise<AudioBu
 }
 
 export function pickSupportedAudioUrl(
-  candidates: ReadonlyArray<{ url: string; mime: string }>,
+  candidates: ReadonlyArray<{ url: string; mime: string }>
 ): string {
-  if (typeof document === "undefined") return candidates[candidates.length - 1].url;
+  if (typeof document === "undefined")
+    return candidates[candidates.length - 1].url;
   const probe = document.createElement("audio");
   for (const c of candidates) {
     if (probe.canPlayType(c.mime)) return c.url;
@@ -109,7 +117,7 @@ export function playSample(
   ctx: AudioContext,
   audioTime: number,
   buffer: AudioBuffer,
-  opts: SampleOpts = {},
+  opts: SampleOpts = {}
 ): void {
   const t = Math.max(audioTime, ctx.currentTime);
   const offsetSec = Math.max(0, opts.offsetSec ?? 0);
