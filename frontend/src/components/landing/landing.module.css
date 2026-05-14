@@ -1,0 +1,28 @@
+.landing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #000;
+}
+
+.landing button {
+  font-size: 24px;
+  padding: 12px 24px;
+  color: #fff;
+  background: transparent;
+
+  border: 2px solid #fff;
+  border-radius: 8px;
+
+  font-family: var(--font-sans);
+
+  cursor: pointer;
+}
+.landing button:hover {
+  background: #fff;
+  color: #000;
+}
+.landing button:active {
+  opacity: 0.8;
+}

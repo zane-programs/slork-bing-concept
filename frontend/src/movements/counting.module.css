@@ -1,0 +1,24 @@
+.blackdrop {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+}
+
+.flash {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 1001;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.flashAnimating {
+  animation: counting-flash 360ms ease-out forwards;
+}
+
+@keyframes counting-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}

@@ -20,5 +20,11 @@ export default defineConfig({
     fs: {
       allow: [".."],
     },
+    proxy: {
+      "/ws": {
+        target: "ws://localhost:3123",
+        ws: true,
+      },
+    },
   },
 });

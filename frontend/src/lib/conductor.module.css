@@ -1,0 +1,77 @@
+.section {
+  margin-top: 24px;
+}
+
+.bpmInput {
+  width: 80px;
+}
+
+.muted {
+  opacity: 0.6;
+}
+
+.roster {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.rosterItem {
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.rosterItemActive {
+  background: rgba(60, 220, 90, 0.25);
+}
+
+.intensityRow {
+  margin-top: 12px;
+}
+
+.intensitySlider {
+  width: 240px;
+  vertical-align: middle;
+}
+
+.intensityReadout {
+  opacity: 0.7;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.countingGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.customNInput {
+  width: 70px;
+}
+
+.rangeHint {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sliderInput {
+  width: 240px;
+  vertical-align: middle;
+}
+
+.sliderReadout {
+  opacity: 0.7;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.sliderLabel {
+  min-width: 64px;
+}

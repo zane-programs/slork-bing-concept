@@ -1,0 +1,51 @@
+.panel {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  display: inline-block;
+}
+
+.panelActive {
+  background: rgba(60, 220, 90, 0.18);
+  transition: background 80ms linear;
+}
+
+.idle {
+  margin: 0;
+  opacity: 0.6;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dot {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #888;
+  animation: beat-pulse 200ms ease-out;
+}
+
+.dotActive {
+  background: #3cdc5a;
+  box-shadow: 0 0 12px #3cdc5a;
+}
+
+.info {
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.subInfo {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+@keyframes beat-pulse {
+  0% { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
