@@ -158,19 +158,10 @@ export default function Counting({ data }: { data: MovementData["counting"] }) {
     }
   });
 
-  const pending = clampN(data.n) !== activeN ? clampN(data.n) : null;
-  return <CountingStage flashKey={flashKey} n={activeN} pendingN={pending} />;
+  return <CountingStage flashKey={flashKey} />;
 }
 
-function CountingStage({
-  flashKey,
-  n,
-  pendingN,
-}: {
-  flashKey: number;
-  n: number;
-  pendingN: number | null;
-}) {
+function CountingStage({ flashKey }: { flashKey: number }) {
   return (
     <>
       <div className={styles.blackdrop} aria-hidden />
