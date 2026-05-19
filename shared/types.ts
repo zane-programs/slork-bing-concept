@@ -1,8 +1,13 @@
-export type MovementId = "clicking" | "counting";
+export type MovementId = "clicking" | "counting" | "wake";
 
 export interface MovementData {
   clicking: { intensity: number };
   counting: { n: number; gain: number; pitchMultiply: number };
+  wake: {
+    gain: number,
+    /** note names without octave (octaves are generated on frontend) */
+    activeNoteNames: string[],
+  };
 }
 
 export type MovementState =

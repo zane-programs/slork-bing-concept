@@ -218,7 +218,7 @@ function MovementControls({
   if (state.movement === "wake") {
     return (
       <WakeControls
-        gain={state.data.gain}
+        data={state.data}
         beat={beat}
         updateMovement={updateMovement}
         setBeat={setBeat}
@@ -229,22 +229,44 @@ function MovementControls({
 }
 
 function WakeControls({
-  gain,
+  data,
   beat,
   updateMovement,
   setBeat,
 }: {
-  gain: number;
+  data: MovementData["wake"];
   beat: BeatState;
   updateMovement: Props["updateMovement"];
   setBeat: Props["setBeat"];
 }) {
-  const [toggledNotes, setToggledNotes] = useState<Set<string>>(new Set());
+  const [toggledNotes, setToggledNotes] = useState<Set<string>>(
+    () => new Set(data.activeNoteNames),
+  );
+
+  useEffect(() => {
+    // we're actually synchronizing from server here so the setState is,
+    // while not ideal, at least intentional lol
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToggledNotes((prev) => {
+      const now = new Set(data.activeNoteNames);
+      if (
+        now.size === prev.size &&
+        Array.from(now).every((note) => prev.has(note))
+      ) {
+        return prev;
+      }
+      return now;
+    });
+  }, [data.activeNoteNames]);
+
+  useEffect(() => {
+    updateMovement("wake", { activeNoteNames: Array.from(toggledNotes) });
+  }, [toggledNotes, updateMovement]);
 
   return (
     <div className={styles.countingGrid}>
       <WakeBpmSlider beat={beat} setBeat={setBeat} />
-      <WakeGainSlider gain={gain} updateMovement={updateMovement} />
+      <WakeGainSlider gain={data.gain} updateMovement={updateMovement} />
       <WakePiano
         toggledNotes={toggledNotes}
         setToggledNotes={setToggledNotes}
@@ -333,6 +355,7 @@ function WakePianoKey({
 }) {
   return (
     <div
+      aria-label={note}
       className={clsx(styles.key, isToggled && styles.toggled)}
       role="button"
       onClick={onToggle}

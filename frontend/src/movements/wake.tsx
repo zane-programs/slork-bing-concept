@@ -20,10 +20,22 @@ export const WAKE_GAIN_MAX = 1;
 
 // Dsus2sus4? am not the music theory guy of all time
 const WAKE_PITCH_NAMES = [
-  "D3", "E3", "G3", "A3",
-  "D4", "E4", "G4", "A4",
-  "D5", "E5", "G5", "A5",
-  "D6", "E6", "G6", "A6",
+  "D3",
+  "E3",
+  "G3",
+  "A3",
+  "D4",
+  "E4",
+  "G4",
+  "A4",
+  "D5",
+  "E5",
+  "G5",
+  "A5",
+  "D6",
+  "E6",
+  "G6",
+  "A6",
 ] as const;
 
 const WAKE_PITCH_FREQS: readonly number[] = WAKE_PITCH_NAMES.map((n) => {
@@ -49,11 +61,31 @@ const ONSET_SPREAD_BEATS = 1.6;
 // to quote cs 109 i am taking right now, Skip ~ Bern(0.18)
 const SKIP_PROB = 0.18;
 
-function pickPitch(): { freq: number; hue: number } {
-  const i = Math.floor(Math.random() * WAKE_PITCH_FREQS.length);
-  const freq = WAKE_PITCH_FREQS[i];
+// for procedural generation of notes (tacking these on to activeNoteNames names)
+const POSSIBLE_OCTAVES = [3, 4, 5, 6];
+
+function pickPitch(pitchesBank: Set<number> = new Set(WAKE_PITCH_FREQS)): {
+  freq: number;
+  hue: number;
+} {
+  console.log("picking from bank", pitchesBank.size, pitchesBank);
+  const i = Math.floor(Math.random() * pitchesBank.size);
+  const freq = Array.from(pitchesBank)[i];
   const pc = [2, 4, 7, 9][i % 4];
   return { freq, hue: HUES_BY_PC[pc] };
+}
+
+function convertNoteNamesToPitches(noteNames: readonly string[]): Set<number> {
+  const pitches = new Set<number>();
+  for (const n of noteNames) {
+    for (const octave of POSSIBLE_OCTAVES) {
+      // e.g. n = "D", octave = 4 => note = "D4"
+      const note = n + octave;
+      const midi = parseNoteToMidi(note);
+      if (midi !== null) pitches.add(midiToFreq(midi));
+    }
+  }
+  return pitches;
 }
 
 // soft, bellish tone with a long fade so notes overlap into a wash
@@ -62,7 +94,7 @@ function playWakeNote(
   audioTime: number,
   freq: number,
   gainVal: number,
-  noteSec: number
+  noteSec: number,
 ) {
   const t = Math.max(audioTime, ctx.currentTime);
   const attackSec = Math.min(0.08, noteSec * 0.15);
@@ -106,14 +138,26 @@ interface Flash {
 
 export default function Wake({ data }: { data: MovementData["wake"] }) {
   const gainRef = useRef(data.gain);
+  const pitchesBankRef = useRef(new Set<number>());
+
   useEffect(() => {
     gainRef.current = data.gain;
   }, [data.gain]);
+  useEffect(() => {
+    // separated this into its own effect bc convertNoteNamesToPitches is a bit expensive
+    // TODO: consider converting to pitches on conductor side, saving all phones from having
+    // to do this themselves (might be kinder of me lol)
+    if (data.activeNoteNames?.length === 0) {
+      pitchesBankRef.current = new Set<number>();
+    } else {
+      pitchesBankRef.current = convertNoteNamesToPitches(data.activeNoteNames);
+    }
+  }, [data.activeNoteNames]);
 
   const [flashes, setFlashes] = useState<readonly Flash[]>([]);
   const flashKeyRef = useRef(0);
   const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(
-    new Set()
+    new Set(),
   );
 
   useEffect(() => {
@@ -128,13 +172,13 @@ export default function Wake({ data }: { data: MovementData["wake"] }) {
     if (gainRef.current <= 0) return;
     if (Math.random() < SKIP_PROB) return;
 
-    const { freq, hue } = pickPitch();
+    const { freq, hue } = pickPitch(pitchesBankRef.current);
     const period = Math.max(0.15, e.periodSec);
     // random onset within ~1.6 beats so devices smear across the grid
     const onsetOffsetSec = Math.random() * (period * ONSET_SPREAD_BEATS);
     const noteSec = Math.min(
       NOTE_MAX_SEC,
-      NOTE_MIN_SEC + Math.random() * Math.max(NOTE_MIN_SEC, period * 2.5)
+      NOTE_MIN_SEC + Math.random() * Math.max(NOTE_MIN_SEC, period * 2.5),
     );
     const onsetAudio = e.audioTime + onsetOffsetSec;
     playWakeNote(e.ctx, onsetAudio, freq, gainRef.current, noteSec);
