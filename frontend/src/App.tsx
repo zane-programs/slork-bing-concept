@@ -99,5 +99,9 @@ function renderMovement(state: NonNullable<MovementState>) {
     const M = MOVEMENT_COMPONENTS["clicking"];
     return <M data={state.data} />;
   }
+  if (state.movement === "wake") {
+    const M = MOVEMENT_COMPONENTS["wake"];
+    return <M data={state.data} />;
+  }
   return null;
 }

@@ -1,0 +1,38 @@
+.blackdrop {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+}
+
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+
+.flashAnimating {
+  animation-name: wake-flash;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+}
+
+/* glow anim matches audio envelope */
+@keyframes wake-flash {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.9;
+  }
+  22% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+  }
+}

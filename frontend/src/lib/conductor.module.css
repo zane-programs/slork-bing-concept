@@ -75,3 +75,62 @@
 .sliderLabel {
   min-width: 64px;
 }
+
+.wakePiano {
+  width: 100%;
+  height: 120px;
+  position: relative;
+  --white-key-width: 32px;
+  --black-key-width: calc(var(--white-key-width) * 0.67);
+}
+
+.wakePiano .whites {
+  height:100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.wakePiano .whites .key {
+  width: var(--white-key-width);
+  height: 100%;
+  border: 1px solid #333;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.wakePiano .blacks {
+  position: absolute;
+  width: 100%;
+  height: 60%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.wakePiano .blacks .key {
+  pointer-events: auto; /* the parent container shouldn't be clickable, but the keys should be s.t. whites are clickable thru it*/
+  width: var(--black-key-width);
+  height: 100%;
+  border: 1px solid #333;
+  background-color: #000;
+  box-sizing: border-box;
+
+  position: absolute;
+  top: 0;
+  left: calc(var(--white-key-width) * (var(--idx) + 1) - var(--black-key-width) / 2);
+}
+
+.wakePiano .key.toggled::after {
+  content: '';
+  position: absolute;
+  bottom:5%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 60%;
+  aspect-ratio:1; /* hopefully we're in modern enough browsers lol */
+  background: #f50;
+
+  border: none;
+  border-radius: 100%;
+}

@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import type { BeatState, DeviceInfo } from "@shared/types";
 import {
@@ -23,6 +24,12 @@ import {
   semisToPitchMultiply,
 } from "../movements/counting";
 import { intensityToBpm } from "../movements/clicking";
+import {
+  WAKE_BPM_MAX,
+  WAKE_BPM_MIN,
+  WAKE_GAIN_MAX,
+  WAKE_GAIN_MIN,
+} from "../movements/wake";
 import styles from "./conductor.module.css";
 
 interface Props {
@@ -36,7 +43,7 @@ interface Props {
   setMovement: (movement: MovementId | null) => void;
   updateMovement: <K extends MovementId>(
     movement: K,
-    data: Partial<MovementData[K]>
+    data: Partial<MovementData[K]>,
   ) => void;
   setBeat: (bpm: number | null) => void;
 }
@@ -159,11 +166,10 @@ function DeviceRoster({
             return (
               <li
                 key={d.clientId}
-                className={
-                  isActive
-                    ? `${styles.rosterItem} ${styles.rosterItemActive}`
-                    : styles.rosterItem
-                }
+                className={clsx(
+                  styles.rosterItem,
+                  isActive && styles.rosterItemActive,
+                )}
               >
                 #{d.index} - {d.clientId}
                 {isMe ? " (you)" : ""}
@@ -209,7 +215,192 @@ function MovementControls({
       />
     );
   }
+  if (state.movement === "wake") {
+    return (
+      <WakeControls
+        gain={state.data.gain}
+        beat={beat}
+        updateMovement={updateMovement}
+        setBeat={setBeat}
+      />
+    );
+  }
   return null;
+}
+
+function WakeControls({
+  gain,
+  beat,
+  updateMovement,
+  setBeat,
+}: {
+  gain: number;
+  beat: BeatState;
+  updateMovement: Props["updateMovement"];
+  setBeat: Props["setBeat"];
+}) {
+  const [toggledNotes, setToggledNotes] = useState<Set<string>>(new Set());
+
+  return (
+    <div className={styles.countingGrid}>
+      <WakeBpmSlider beat={beat} setBeat={setBeat} />
+      <WakeGainSlider gain={gain} updateMovement={updateMovement} />
+      <WakePiano
+        toggledNotes={toggledNotes}
+        setToggledNotes={setToggledNotes}
+      />
+    </div>
+  );
+}
+
+const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B"];
+const BLACK_KEYS = ["C#", "D#", "", "F#", "G#", "A#"];
+
+function WakePiano({
+  toggledNotes,
+  setToggledNotes,
+}: {
+  toggledNotes: Set<string>;
+  setToggledNotes: React.Dispatch<React.SetStateAction<Set<string>>>;
+}) {
+  const toggleNote = (note: string) => {
+    setToggledNotes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(note)) {
+        newSet.delete(note);
+      } else {
+        newSet.add(note);
+      }
+      return newSet;
+    });
+  };
+
+  return (
+    <div className={styles.wakePiano}>
+      <div className={styles.whites}>
+        {WHITE_KEYS.map((k) => (
+          // <div key={k} className={styles.key} role="button">
+          //   {k}
+          // </div>
+          <WakePianoKey
+            key={k}
+            note={k}
+            isToggled={toggledNotes.has(k)}
+            onToggle={() => toggleNote(k)}
+          />
+        ))}
+      </div>
+      <div className={styles.blacks}>
+        {BLACK_KEYS.map((k, i) =>
+          k ? (
+            // <div
+            //   key={k}
+            //   className={styles.key}
+            //   role="button"
+            //   style={
+            //     {
+            //       "--idx": i,
+            //     } as React.CSSProperties
+            //   }
+            // >
+            //   {k}
+            // </div>
+            <WakePianoKey
+              key={k}
+              note={k}
+              isToggled={toggledNotes.has(k)}
+              onToggle={() => toggleNote(k)}
+              idx={i}
+            />
+          ) : // null for skipped key (there is no black key between e and f)
+          null,
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WakePianoKey({
+  note,
+  isToggled,
+  onToggle,
+  idx,
+}: {
+  note: string;
+  isToggled: boolean;
+  onToggle: () => void;
+  idx?: number;
+}) {
+  return (
+    <div
+      className={clsx(styles.key, isToggled && styles.toggled)}
+      role="button"
+      onClick={onToggle}
+      style={
+        typeof idx === "number"
+          ? ({ "--idx": idx } as React.CSSProperties)
+          : undefined
+      }
+    />
+  );
+}
+
+function WakeBpmSlider({
+  beat,
+  setBeat,
+}: {
+  beat: BeatState;
+  setBeat: Props["setBeat"];
+}) {
+  const serverBpm = beat?.bpm ?? 60;
+  const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
+    setBeat(v),
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Tempo</span>
+      <input
+        type="range"
+        min={WAKE_BPM_MIN}
+        max={WAKE_BPM_MAX}
+        step={1}
+        value={value}
+        onChange={(e) => {
+          unlockAudio();
+          onChange(Number(e.target.value));
+        }}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value} bpm</span>
+    </div>
+  );
+}
+
+function WakeGainSlider({
+  gain,
+  updateMovement,
+}: {
+  gain: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
+    updateMovement("wake", { gain: v }),
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Gain</span>
+      <input
+        type="range"
+        min={WAKE_GAIN_MIN}
+        max={WAKE_GAIN_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}×</span>
+    </div>
+  );
 }
 
 // coalesce slider scrubs per rAF; otherwise we flood the socket.
@@ -356,7 +547,7 @@ function CountingControls({
 
 function useCoalescedSlider<T>(
   serverValue: T,
-  send: (v: T) => void
+  send: (v: T) => void,
 ): {
   value: T;
   onChange: (v: T) => void;
@@ -410,7 +601,7 @@ function CountingBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 100;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v)
+    setBeat(v),
   );
   return (
     <div className={styles.sliderRow}>
@@ -440,7 +631,7 @@ function CountingGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("counting", { gain: v })
+    updateMovement("counting", { gain: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -468,7 +659,7 @@ function CountingPitchSlider({
 }) {
   const serverSemis = pitchMultiplyToSemis(pitchMultiply);
   const { value, onChange } = useCoalescedSlider<number>(serverSemis, (v) =>
-    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) })
+    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) }),
   );
   const mult = semisToPitchMultiply(value);
   const sign = value > 0 ? "+" : "";
