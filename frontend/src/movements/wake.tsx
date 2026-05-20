@@ -169,7 +169,7 @@ export default function Wake({ data }: { data: MovementData["wake"] }) {
   }, []);
 
   useBeatSubscription((e) => {
-    if (gainRef.current <= 0) return;
+    if (gainRef.current <= 0 || pitchesBankRef.current.size === 0) return;
     if (Math.random() < SKIP_PROB) return;
 
     const { freq, hue } = pickPitch(pitchesBankRef.current);

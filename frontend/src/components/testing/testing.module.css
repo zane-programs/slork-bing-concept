@@ -1,0 +1,62 @@
+.testing {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+.grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+  background: #222;
+}
+
+.cell {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+}
+
+.cell iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.controls {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #fff;
+  border-radius: 8px;
+
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.controls label {
+  opacity: 0.8;
+}
+
+.controls select {
+  background: #000;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  cursor: pointer;
+}

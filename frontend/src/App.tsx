@@ -7,11 +7,23 @@ import { MOVEMENT_COMPONENTS, type MovementState } from "./movements";
 import { BeatProvider, BeatIndicator, useBeat } from "./lib/beat";
 import { unlockAudio } from "./lib/audio";
 import DeviceLanding from "./components/landing/landing";
+import TestingPage from "./components/testing/testing";
 import styles from "./App.module.css";
 
 export default function App() {
   const hash = useHash();
+
+  if (hash === "#testing") {
+    return <TestingPage />;
+  }
+
+  return <AppInner hash={hash} />;
+}
+
+function AppInner({ hash }: { hash: string }) {
   const role = hash === "#conductor" ? "conductor" : "device";
+  const [joined, setJoined] = useState(false);
+  const socketEnabled = role === "conductor" || joined;
   const {
     isConnected,
     clientId,
@@ -23,9 +35,8 @@ export default function App() {
     updateMovement,
     setBeat,
     getServerTime,
-  } = useSocket(role);
+  } = useSocket(role, socketEnabled);
   const { acquire: acquireWakeLock, release: releaseWakeLock } = useWakeLock();
-  const [joined, setJoined] = useState(false);
 
   const { tick, isActive, bus } = useBeat({
     beat,
@@ -67,12 +78,14 @@ export default function App() {
     return <DeviceLanding onJoin={join} />;
   }
 
+  if (!state) {
+    return <div className={styles.blackdrop} />;
+  }
+
   return (
     <div>
       <BeatProvider bus={bus}>
-        <div>
-          {state ? renderMovement(state) : <p>Waiting for the conductor…</p>}
-        </div>
+        <div>{renderMovement(state)}</div>
       </BeatProvider>
       <div className={styles.indicatorWrap}>
         <BeatIndicator

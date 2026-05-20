@@ -45,7 +45,7 @@ export interface SyncInfo {
   offsetMs: number;
 }
 
-export function useSocket(role: ClientRole) {
+export function useSocket(role: ClientRole, enabled = true) {
   const socketRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [state, setState] = useState<MovementState>(null);
@@ -87,6 +87,7 @@ export function useSocket(role: ClientRole) {
   const getServerTime = useCallback(() => Date.now() + offsetRef.current, []);
 
   useEffect(() => {
+    if (!enabled) return;
     const socket = new WebSocket(SOCKET_URL_BASE + "/ws");
     socketRef.current = socket;
 
@@ -162,8 +163,10 @@ export function useSocket(role: ClientRole) {
       for (const t of timeouts) clearTimeout(t);
       if (steadyInterval) clearInterval(steadyInterval);
       socket.close();
+      socketRef.current = null;
+      setIsConnected(false);
     };
-  }, [role]);
+  }, [role, enabled]);
 
   return {
     isConnected,

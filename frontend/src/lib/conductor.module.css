@@ -129,8 +129,44 @@
 
   width: 60%;
   aspect-ratio:1; /* hopefully we're in modern enough browsers lol */
-  background: #f50;
+  background: var(--dot-color, #f50);
 
   border: none;
   border-radius: 100%;
+}
+
+.variantLive { --dot-color: #f50; }
+.variantActive { --dot-color: #2196f3; }
+.variantAdded { --dot-color: #4caf50; }
+.variantRemoved { --dot-color: #f44336; }
+
+.fireRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.fireButton {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #f44336;
+  color: #fff;
+  border: 1px solid #b71c1c;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fireButton:disabled {
+  background: #555;
+  border-color: #333;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.fireHint {
+  opacity: 0.7;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
 }

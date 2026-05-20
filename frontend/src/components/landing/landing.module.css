@@ -4,22 +4,23 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: #000;
   gap: 1rem;
+  
+  background: #000;
+  color: #fff;
+  font-family: var(--font-sans);
 }
 
 .landing ul {
-  color: #fff;
-  font-family: var(--font-sans);
   line-height: 1.4;
 }
 
 .landing button {
   font-size: 24px;
   padding: 12px 24px;
-  color: #fff;
   background: transparent;
 
+  color: currentColor;
   border: 2px solid #fff;
   border-radius: 8px;
 

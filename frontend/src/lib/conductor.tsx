@@ -228,6 +228,8 @@ function MovementControls({
   return null;
 }
 
+type WakeMode = "live" | "staging";
+
 function WakeControls({
   data,
   beat,
@@ -239,13 +241,15 @@ function WakeControls({
   updateMovement: Props["updateMovement"];
   setBeat: Props["setBeat"];
 }) {
+  const [mode, setMode] = useState<WakeMode>("live");
   const [toggledNotes, setToggledNotes] = useState<Set<string>>(
     () => new Set(data.activeNoteNames),
   );
 
   useEffect(() => {
-    // we're actually synchronizing from server here so the setState is,
-    // while not ideal, at least intentional lol
+    // In staging mode, the local toggledNotes is a draft — don't clobber it
+    // from server updates. Live mode mirrors the server.
+    if (mode !== "live") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setToggledNotes((prev) => {
       const now = new Set(data.activeNoteNames);
@@ -257,20 +261,67 @@ function WakeControls({
       }
       return now;
     });
-  }, [data.activeNoteNames]);
+  }, [data.activeNoteNames, mode]);
 
   useEffect(() => {
+    if (mode !== "live") return;
     updateMovement("wake", { activeNoteNames: Array.from(toggledNotes) });
-  }, [toggledNotes, updateMovement]);
+  }, [toggledNotes, updateMovement, mode]);
+
+  const handleModeChange = (next: WakeMode) => {
+    if (next === "staging") {
+      //start draft from whats currently on the server
+      setToggledNotes(new Set(data.activeNoteNames));
+    }
+    // switching back to live: the resync effect above will repopulate
+    // toggledNotes from the server, discarding unsent staged edits
+    setMode(next);
+  };
+
+  const fire = () => {
+    updateMovement("wake", { activeNoteNames: Array.from(toggledNotes) });
+  };
+
+  const baselineNotes = new Set(data.activeNoteNames);
+  const hasPendingChanges =
+    mode === "staging" &&
+    (baselineNotes.size !== toggledNotes.size ||
+      !Array.from(baselineNotes).every((n) => toggledNotes.has(n)));
 
   return (
     <div className={styles.countingGrid}>
       <WakeBpmSlider beat={beat} setBeat={setBeat} />
       <WakeGainSlider gain={data.gain} updateMovement={updateMovement} />
+      <WakeModeSelect mode={mode} setMode={handleModeChange} />
       <WakePiano
+        mode={mode}
         toggledNotes={toggledNotes}
+        baselineNotes={baselineNotes}
         setToggledNotes={setToggledNotes}
+        onFire={fire}
+        hasPendingChanges={hasPendingChanges}
       />
+    </div>
+  );
+}
+
+function WakeModeSelect({
+  mode,
+  setMode,
+}: {
+  mode: WakeMode;
+  setMode: (m: WakeMode) => void;
+}) {
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Mode</span>
+      <select
+        value={mode}
+        onChange={(e) => setMode(e.target.value as WakeMode)}
+      >
+        <option value="live">Live (auto-send)</option>
+        <option value="staging">Staging (fire manually)</option>
+      </select>
     </div>
   );
 }
@@ -278,12 +329,37 @@ function WakeControls({
 const WHITE_KEYS = ["C", "D", "E", "F", "G", "A", "B"];
 const BLACK_KEYS = ["C#", "D#", "", "F#", "G#", "A#"];
 
+type KeyVariant = "off" | "live" | "active" | "added" | "removed";
+
+function keyVariant(
+  note: string,
+  mode: WakeMode,
+  toggled: Set<string>,
+  baseline: Set<string>,
+): KeyVariant {
+  const inToggled = toggled.has(note);
+  if (mode === "live") return inToggled ? "live" : "off";
+  const inBaseline = baseline.has(note);
+  if (inBaseline && inToggled) return "active";
+  if (!inBaseline && inToggled) return "added";
+  if (inBaseline && !inToggled) return "removed";
+  return "off";
+}
+
 function WakePiano({
+  mode,
   toggledNotes,
+  baselineNotes,
   setToggledNotes,
+  onFire,
+  hasPendingChanges,
 }: {
+  mode: WakeMode;
   toggledNotes: Set<string>;
+  baselineNotes: Set<string>;
   setToggledNotes: React.Dispatch<React.SetStateAction<Set<string>>>;
+  onFire: () => void;
+  hasPendingChanges: boolean;
 }) {
   const toggleNote = (note: string) => {
     setToggledNotes((prev) => {
@@ -298,65 +374,83 @@ function WakePiano({
   };
 
   return (
-    <div className={styles.wakePiano}>
-      <div className={styles.whites}>
-        {WHITE_KEYS.map((k) => (
-          // <div key={k} className={styles.key} role="button">
-          //   {k}
-          // </div>
-          <WakePianoKey
-            key={k}
-            note={k}
-            isToggled={toggledNotes.has(k)}
-            onToggle={() => toggleNote(k)}
-          />
-        ))}
-      </div>
-      <div className={styles.blacks}>
-        {BLACK_KEYS.map((k, i) =>
-          k ? (
-            // <div
-            //   key={k}
-            //   className={styles.key}
-            //   role="button"
-            //   style={
-            //     {
-            //       "--idx": i,
-            //     } as React.CSSProperties
-            //   }
-            // >
-            //   {k}
-            // </div>
+    <div>
+      <div className={styles.wakePiano}>
+        <div className={styles.whites}>
+          {WHITE_KEYS.map((k) => (
             <WakePianoKey
               key={k}
               note={k}
-              isToggled={toggledNotes.has(k)}
+              variant={keyVariant(k, mode, toggledNotes, baselineNotes)}
               onToggle={() => toggleNote(k)}
-              idx={i}
             />
-          ) : // null for skipped key (there is no black key between e and f)
-          null,
-        )}
+          ))}
+        </div>
+        <div className={styles.blacks}>
+          {BLACK_KEYS.map((k, i) =>
+            k ? (
+              <WakePianoKey
+                key={k}
+                note={k}
+                variant={keyVariant(k, mode, toggledNotes, baselineNotes)}
+                onToggle={() => toggleNote(k)}
+                idx={i}
+              />
+            ) : // null for skipped key (there is no black key between e and f)
+            null,
+          )}
+        </div>
       </div>
+      {mode === "staging" ? (
+        <div className={styles.fireRow}>
+          <button
+            type="button"
+            className={styles.fireButton}
+            onClick={onFire}
+            disabled={!hasPendingChanges}
+          >
+            Fire
+          </button>
+          <span className={styles.fireHint}>
+            {hasPendingChanges
+              ? "Broadcast staged changes"
+              : "No staged changes"}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function WakePianoKey({
   note,
-  isToggled,
+  variant,
   onToggle,
   idx,
 }: {
   note: string;
-  isToggled: boolean;
+  variant: KeyVariant;
   onToggle: () => void;
   idx?: number;
 }) {
+  const variantClass =
+    variant === "live"
+      ? styles.variantLive
+      : variant === "active"
+        ? styles.variantActive
+        : variant === "added"
+          ? styles.variantAdded
+          : variant === "removed"
+            ? styles.variantRemoved
+            : undefined;
   return (
     <div
       aria-label={note}
-      className={clsx(styles.key, isToggled && styles.toggled)}
+      className={clsx(
+        styles.key,
+        variant !== "off" && styles.toggled,
+        variantClass,
+      )}
       role="button"
       onClick={onToggle}
       style={
