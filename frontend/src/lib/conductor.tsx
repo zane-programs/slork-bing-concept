@@ -30,6 +30,16 @@ import {
   WAKE_GAIN_MAX,
   WAKE_GAIN_MIN,
 } from "../movements/wake";
+import {
+  TURN_GAIN_MAX,
+  TURN_GAIN_MIN,
+  TURN_OCTAVE_MAX,
+  TURN_OCTAVE_MIN,
+  TURN_TIMBRE_AMOUNT_MAX,
+  TURN_TIMBRE_AMOUNT_MIN,
+  TURN_VIBRATO_CENTS_MAX,
+  TURN_VIBRATO_CENTS_MIN,
+} from "../movements/turn";
 import styles from "./conductor.module.css";
 
 interface Props {
@@ -43,7 +53,7 @@ interface Props {
   setMovement: (movement: MovementId | null) => void;
   updateMovement: <K extends MovementId>(
     movement: K,
-    data: Partial<MovementData[K]>,
+    data: Partial<MovementData[K]>
   ) => void;
   setBeat: (bpm: number | null) => void;
 }
@@ -168,7 +178,7 @@ function DeviceRoster({
                 key={d.clientId}
                 className={clsx(
                   styles.rosterItem,
-                  isActive && styles.rosterItemActive,
+                  isActive && styles.rosterItemActive
                 )}
               >
                 #{d.index} - {d.clientId}
@@ -225,7 +235,231 @@ function MovementControls({
       />
     );
   }
+  if (state.movement === "turn") {
+    return <TurnControls data={state.data} updateMovement={updateMovement} />;
+  }
   return null;
+}
+
+function TurnControls({
+  data,
+  updateMovement,
+}: {
+  data: MovementData["turn"];
+  updateMovement: Props["updateMovement"];
+}) {
+  // live-only: any toggle ships immediately (turn voices are per-touch)
+  const [toggledNotes, setToggledNotes] = useState<Set<string>>(
+    () => new Set(data.activeNoteNames)
+  );
+
+  useEffect(() => {
+    //mirror server pushes (e.g. another conductor edit) into the local set
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToggledNotes((prev) => {
+      const now = new Set(data.activeNoteNames);
+      if (now.size === prev.size && Array.from(now).every((n) => prev.has(n))) {
+        return prev;
+      }
+      return now;
+    });
+  }, [data.activeNoteNames]);
+
+  useEffect(() => {
+    const serverSet = new Set(data.activeNoteNames);
+    if (
+      serverSet.size === toggledNotes.size &&
+      Array.from(toggledNotes).every((n) => serverSet.has(n))
+    ) {
+      return;
+    }
+    updateMovement("turn", { activeNoteNames: Array.from(toggledNotes) });
+  }, [toggledNotes, updateMovement, data.activeNoteNames]);
+
+  const toggleNote = (note: string) => {
+    setToggledNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(note)) next.delete(note);
+      else next.add(note);
+      return next;
+    });
+  };
+
+  return (
+    <div className={styles.countingGrid}>
+      <TurnGainSlider gain={data.gain} updateMovement={updateMovement} />
+      <TurnVibratoSlider
+        vibratoMaxCents={data.vibratoMaxCents}
+        updateMovement={updateMovement}
+      />
+      <TurnTimbreSlider
+        timbreAmount={data.timbreAmount}
+        updateMovement={updateMovement}
+      />
+      <TurnOctaveSelect octave={data.octave} updateMovement={updateMovement} />
+      <TurnPalettePiano toggledNotes={toggledNotes} onToggle={toggleNote} />
+    </div>
+  );
+}
+
+function TurnPalettePiano({
+  toggledNotes,
+  onToggle,
+}: {
+  toggledNotes: Set<string>;
+  onToggle: (note: string) => void;
+}) {
+  //same look as wake piano but always-live and single-variant
+  return (
+    <div className={styles.wakePiano}>
+      <div className={styles.whites}>
+        {WHITE_KEYS.map((k) => (
+          <div
+            key={k}
+            aria-label={k}
+            role="button"
+            onClick={() => onToggle(k)}
+            className={clsx(
+              styles.key,
+              toggledNotes.has(k) && styles.toggled,
+              toggledNotes.has(k) && styles.variantLive
+            )}
+          />
+        ))}
+      </div>
+      <div className={styles.blacks}>
+        {BLACK_KEYS.map((k, i) =>
+          k ? (
+            <div
+              key={k}
+              aria-label={k}
+              role="button"
+              onClick={() => onToggle(k)}
+              className={clsx(
+                styles.key,
+                toggledNotes.has(k) && styles.toggled,
+                toggledNotes.has(k) && styles.variantLive
+              )}
+              style={{ "--idx": i } as React.CSSProperties}
+            />
+          ) : null
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TurnGainSlider({
+  gain,
+  updateMovement,
+}: {
+  gain: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
+    updateMovement("turn", { gain: v })
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Gain</span>
+      <input
+        type="range"
+        min={TURN_GAIN_MIN}
+        max={TURN_GAIN_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}×</span>
+    </div>
+  );
+}
+
+function TurnVibratoSlider({
+  vibratoMaxCents,
+  updateMovement,
+}: {
+  vibratoMaxCents: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(vibratoMaxCents, (v) =>
+    updateMovement("turn", { vibratoMaxCents: v })
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Vibrato</span>
+      <input
+        type="range"
+        min={TURN_VIBRATO_CENTS_MIN}
+        max={TURN_VIBRATO_CENTS_MAX}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value} ¢ max</span>
+    </div>
+  );
+}
+
+function TurnTimbreSlider({
+  timbreAmount,
+  updateMovement,
+}: {
+  timbreAmount: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(timbreAmount, (v) =>
+    updateMovement("turn", { timbreAmount: v })
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Timbre</span>
+      <input
+        type="range"
+        min={TURN_TIMBRE_AMOUNT_MIN}
+        max={TURN_TIMBRE_AMOUNT_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}×</span>
+    </div>
+  );
+}
+
+function TurnOctaveSelect({
+  octave,
+  updateMovement,
+}: {
+  octave: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const clampOct = (v: number) =>
+    Math.max(
+      TURN_OCTAVE_MIN,
+      Math.min(TURN_OCTAVE_MAX, Math.floor(v) || TURN_OCTAVE_MIN)
+    );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Octave</span>
+      <input
+        type="number"
+        min={TURN_OCTAVE_MIN}
+        max={TURN_OCTAVE_MAX}
+        value={octave}
+        onChange={(e) =>
+          updateMovement("turn", { octave: clampOct(Number(e.target.value)) })
+        }
+        className={styles.customNInput}
+      />
+      <span className={styles.rangeHint}>
+        ({TURN_OCTAVE_MIN}–{TURN_OCTAVE_MAX})
+      </span>
+    </div>
+  );
 }
 
 type WakeMode = "live" | "staging";
@@ -243,12 +477,11 @@ function WakeControls({
 }) {
   const [mode, setMode] = useState<WakeMode>("live");
   const [toggledNotes, setToggledNotes] = useState<Set<string>>(
-    () => new Set(data.activeNoteNames),
+    () => new Set(data.activeNoteNames)
   );
 
   useEffect(() => {
-    // In staging mode, the local toggledNotes is a draft — don't clobber it
-    // from server updates. Live mode mirrors the server.
+    // staging keeps a local draft, live mirrors server
     if (mode !== "live") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setToggledNotes((prev) => {
@@ -273,8 +506,7 @@ function WakeControls({
       //start draft from whats currently on the server
       setToggledNotes(new Set(data.activeNoteNames));
     }
-    // switching back to live: the resync effect above will repopulate
-    // toggledNotes from the server, discarding unsent staged edits
+    //live: resync effect repopulates from server, dropping staged edits
     setMode(next);
   };
 
@@ -335,7 +567,7 @@ function keyVariant(
   note: string,
   mode: WakeMode,
   toggled: Set<string>,
-  baseline: Set<string>,
+  baseline: Set<string>
 ): KeyVariant {
   const inToggled = toggled.has(note);
   if (mode === "live") return inToggled ? "live" : "off";
@@ -397,7 +629,7 @@ function WakePiano({
                 idx={i}
               />
             ) : // null for skipped key (there is no black key between e and f)
-            null,
+            null
           )}
         </div>
       </div>
@@ -437,19 +669,19 @@ function WakePianoKey({
     variant === "live"
       ? styles.variantLive
       : variant === "active"
-        ? styles.variantActive
-        : variant === "added"
-          ? styles.variantAdded
-          : variant === "removed"
-            ? styles.variantRemoved
-            : undefined;
+      ? styles.variantActive
+      : variant === "added"
+      ? styles.variantAdded
+      : variant === "removed"
+      ? styles.variantRemoved
+      : undefined;
   return (
     <div
       aria-label={note}
       className={clsx(
         styles.key,
         variant !== "off" && styles.toggled,
-        variantClass,
+        variantClass
       )}
       role="button"
       onClick={onToggle}
@@ -471,7 +703,7 @@ function WakeBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 60;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v),
+    setBeat(v)
   );
   return (
     <div className={styles.sliderRow}>
@@ -501,7 +733,7 @@ function WakeGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("wake", { gain: v }),
+    updateMovement("wake", { gain: v })
   );
   return (
     <div className={styles.sliderRow}>
@@ -520,7 +752,7 @@ function WakeGainSlider({
   );
 }
 
-// coalesce slider scrubs per rAF; otherwise we flood the socket.
+// coalesce slider scrubs per rAF so we don't flood the socket
 function ClickingControls({
   intensity,
   updateMovement,
@@ -664,7 +896,7 @@ function CountingControls({
 
 function useCoalescedSlider<T>(
   serverValue: T,
-  send: (v: T) => void,
+  send: (v: T) => void
 ): {
   value: T;
   onChange: (v: T) => void;
@@ -718,7 +950,7 @@ function CountingBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 100;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v),
+    setBeat(v)
   );
   return (
     <div className={styles.sliderRow}>
@@ -748,7 +980,7 @@ function CountingGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("counting", { gain: v }),
+    updateMovement("counting", { gain: v })
   );
   return (
     <div className={styles.sliderRow}>
@@ -776,7 +1008,7 @@ function CountingPitchSlider({
 }) {
   const serverSemis = pitchMultiplyToSemis(pitchMultiply);
   const { value, onChange } = useCoalescedSlider<number>(serverSemis, (v) =>
-    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) }),
+    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) })
   );
   const mult = semisToPitchMultiply(value);
   const sign = value > 0 ? "+" : "";

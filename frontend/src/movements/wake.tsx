@@ -94,7 +94,7 @@ function playWakeNote(
   audioTime: number,
   freq: number,
   gainVal: number,
-  noteSec: number,
+  noteSec: number
 ) {
   const t = Math.max(audioTime, ctx.currentTime);
   const attackSec = Math.min(0.08, noteSec * 0.15);
@@ -157,7 +157,7 @@ export default function Wake({ data }: { data: MovementData["wake"] }) {
   const [flashes, setFlashes] = useState<readonly Flash[]>([]);
   const flashKeyRef = useRef(0);
   const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(
-    new Set(),
+    new Set()
   );
 
   useEffect(() => {
@@ -178,7 +178,7 @@ export default function Wake({ data }: { data: MovementData["wake"] }) {
     const onsetOffsetSec = Math.random() * (period * ONSET_SPREAD_BEATS);
     const noteSec = Math.min(
       NOTE_MAX_SEC,
-      NOTE_MIN_SEC + Math.random() * Math.max(NOTE_MIN_SEC, period * 2.5),
+      NOTE_MIN_SEC + Math.random() * Math.max(NOTE_MIN_SEC, period * 2.5)
     );
     const onsetAudio = e.audioTime + onsetOffsetSec;
     playWakeNote(e.ctx, onsetAudio, freq, gainRef.current, noteSec);

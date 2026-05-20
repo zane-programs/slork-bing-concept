@@ -1,0 +1,120 @@
+.blackdrop {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  /* necessary for touch events to work properly */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.025),
+    rgba(255, 255, 255, 0) 60%
+  );
+}
+
+.touchGlow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  /* a hint of breathing so a sustained hold doesn't feel inert. */
+  animation: turn-glow-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes turn-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ripple {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  transform: translate(-50%, -50%) scale(0.3);
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation-name: turn-ripple;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+}
+
+@keyframes turn-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.9;
+  }
+  40% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(8);
+    opacity: 0;
+  }
+}
+
+.noteRuler {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  pointer-events: none;
+  font-family: var(--font-sans);
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.noteRuler li {
+  text-align: right;
+  /* tiny dim halo so the letter stays readable on bright ripples */
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: var(--font-sans);
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.subtle {
+  opacity: 0.55;
+  font-size: 0.85em;
+}

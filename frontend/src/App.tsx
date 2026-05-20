@@ -6,6 +6,7 @@ import { ConductorPanel } from "./lib/conductor";
 import { MOVEMENT_COMPONENTS, type MovementState } from "./movements";
 import { BeatProvider, BeatIndicator, useBeat } from "./lib/beat";
 import { unlockAudio } from "./lib/audio";
+import { requestOrientationPermission } from "./lib/orientation";
 import DeviceLanding from "./components/landing/landing";
 import TestingPage from "./components/testing/testing";
 import styles from "./App.module.css";
@@ -52,8 +53,10 @@ function AppInner({ hash }: { hash: string }) {
   }, [releaseWakeLock]);
 
   const join = useCallback(() => {
+    // ios requires sync invocation in the same user gesture
     unlockAudio();
     void acquireWakeLock();
+    void requestOrientationPermission();
     setJoined(true);
   }, [acquireWakeLock]);
 
@@ -114,6 +117,10 @@ function renderMovement(state: NonNullable<MovementState>) {
   }
   if (state.movement === "wake") {
     const M = MOVEMENT_COMPONENTS["wake"];
+    return <M data={state.data} />;
+  }
+  if (state.movement === "turn") {
+    const M = MOVEMENT_COMPONENTS["turn"];
     return <M data={state.data} />;
   }
   return null;

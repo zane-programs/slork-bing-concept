@@ -1,12 +1,23 @@
-export type MovementId = "clicking" | "counting" | "wake";
+export type MovementId = "clicking" | "counting" | "wake" | "turn";
 
 export interface MovementData {
   clicking: { intensity: number };
   counting: { n: number; gain: number; pitchMultiply: number };
   wake: {
-    gain: number,
+    gain: number;
     /** note names without octave (octaves are generated on frontend) */
-    activeNoteNames: string[],
+    activeNoteNames: string[];
+  };
+  turn: {
+    gain: number;
+    /** palette of pitch-classes the audience can play (e.g. ["D","E","G","A"]) */
+    activeNoteNames: string[];
+    /** single octave used for the whole field; pitch is picked by y-position */
+    octave: number;
+    /** max vibrato depth in cents at full tilt (beta) */
+    vibratoMaxCents: number;
+    /** how strongly gamma tilt opens/closes the timbre filter (0 = off) */
+    timbreAmount: number;
   };
 }
 
@@ -24,12 +35,19 @@ export interface DeviceInfo {
 }
 
 // beat N at: anchorMs + (N - originBeat) * (60_000 / bpm). originBeat steps on bpm changes.
-export type BeatState =
-  | { anchorMs: number; bpm: number; originBeat?: number }
-  | null;
+export type BeatState = {
+  anchorMs: number;
+  bpm: number;
+  originBeat?: number;
+} | null;
 
 export type ServerMessage =
-  | { type: "assigned"; clientId: ClientId; index: number | null; role: ClientRole }
+  | {
+      type: "assigned";
+      clientId: ClientId;
+      index: number | null;
+      role: ClientRole;
+    }
   | { type: "state"; state: MovementState }
   | { type: "devices"; devices: DeviceInfo[] }
   | { type: "beat"; beat: BeatState }

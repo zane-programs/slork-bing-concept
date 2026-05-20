@@ -2,6 +2,7 @@ import type { MovementData, MovementId } from "@shared/types";
 
 import Clicking from "./clicking";
 import Counting from "./counting";
+import Turn from "./turn";
 import Wake from "./wake";
 
 export const MOVEMENT_COMPONENTS: {
@@ -9,6 +10,7 @@ export const MOVEMENT_COMPONENTS: {
 } = {
   clicking: Clicking,
   counting: Counting,
+  turn: Turn,
   wake: Wake,
 };
 

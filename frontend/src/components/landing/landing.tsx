@@ -4,7 +4,7 @@ import { unlockAudio, playTone } from "../../lib/audio";
 import { midiToFreq, parseNoteToMidi } from "../../lib/music";
 
 const TEST_TONE_FREQS = ["C4", "E4", "G4", "C5", "G4", "E4", "C4"].map((n) =>
-  midiToFreq(parseNoteToMidi(n)!),
+  midiToFreq(parseNoteToMidi(n)!)
 );
 
 export default function DeviceLanding({ onJoin }: { onJoin: () => void }) {
