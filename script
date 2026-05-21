@@ -1,0 +1,9 @@
+#!/bin/bash
+pushd ~/slork/users/z4n3/together/slorkside
+
+system-sound-to-motu
+osascript -e "set Volume 6"
+
+chuck -c8 slorkstation.ck
+
+popd
