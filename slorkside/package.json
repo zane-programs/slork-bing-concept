@@ -1,0 +1,23 @@
+{
+  "name": "zane-slork-side",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/slorkside/src/osc-bridge.js",
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "start": "node dist/slorkside/src/osc-bridge.js",
+    "dev": "tsx watch src/osc-bridge.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "@types/ws": "^8.18.1",
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

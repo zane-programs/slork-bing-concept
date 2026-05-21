@@ -27,7 +27,7 @@ export type MovementState =
 
 export type ClientId = string;
 
-export type ClientRole = "device" | "conductor";
+export type ClientRole = "device" | "conductor" | "observer";
 
 export interface DeviceInfo {
   clientId: ClientId;

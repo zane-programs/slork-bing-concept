@@ -107,7 +107,11 @@ export default class SocketManager {
     offeredRole: ClientRole | undefined
   ) {
     const role: ClientRole =
-      offeredRole === "conductor" ? "conductor" : "device";
+      offeredRole === "conductor"
+        ? "conductor"
+        : offeredRole === "observer"
+        ? "observer"
+        : "device";
 
     const existing = this.idForSocket.get(socket);
     if (existing) {
