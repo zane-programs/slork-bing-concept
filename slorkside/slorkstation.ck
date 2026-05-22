@@ -7,18 +7,11 @@
 // fallback) shared across all four
 
 GameTrak gt;
-
 WakeMovement wake;
-TurnMovement turn;
-ClickingMovement clicking;
-CountingMovement counting;
 
 wake.set_gt(gt);
-turn.set_gt(gt);
-clicking.set_gt(gt);
-counting.set_gt(gt);
 
-OscRouter router(wake, turn, clicking, counting);
+OscRouter router(wake);
 router.start();
 
 GG.windowTitle("SLOrkStation");

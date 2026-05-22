@@ -1,4 +1,4 @@
-@import {"../movements/wake.ck", "../movements/turn.ck", "../movements/clicking.ck", "../movements/counting.ck"}
+@import {"../movements/wake.ck"}
 
 // one OscIn for the whole station, dispatch by address. bridge heartbeats
 // every 500ms so we just trust what we see + don't need delta tracking
@@ -9,17 +9,11 @@ public class OscRouter {
   OscMsg msg;
 
   WakeMovement @ wake;
-  TurnMovement @ turn;
-  ClickingMovement @ clicking;
-  CountingMovement @ counting;
 
   Movement @ current;
 
-  fun @construct(WakeMovement w, TurnMovement t, ClickingMovement c, CountingMovement cn) {
+  fun @construct(WakeMovement w) {
     w @=> wake;
-    t @=> turn;
-    c @=> clicking;
-    cn @=> counting;
 
     OSC_PORT => oin.port;
     oin.addAddress("/state/none");
@@ -65,17 +59,16 @@ public class OscRouter {
       m.getInt(2) => int octave;
       m.getFloat(3) => float vibrato_cents;
       m.getFloat(4) => float timbre;
-      turn.set_data(g, names, octave, vibrato_cents, timbre);
     }
     else if (m.address == "/movement/clicking") {
       m.getFloat(0) => float intensity;
-      clicking.set_data(intensity);
+      <<<"not implemented yet", "">>>;
     }
     else if (m.address == "/movement/counting") {
       m.getInt(0) => int n;
       m.getFloat(1) => float g;
       m.getFloat(2) => float pmul;
-      counting.set_data(n, g, pmul);
+      <<<"not implemented yet", "">>>;
     }
     else if (m.address == "/beat") {
       // arg 0 is anchorMs as a string (doesnt fit in osc f32), we don't need it
@@ -87,13 +80,8 @@ public class OscRouter {
     }
   }
 
-  // turn/clicking/counting temporarily disabled, return null so the station
-  // falls to black + silent for those. flip back on once they're debugged
   fun Movement _lookup(string name) {
     if (name == "wake") return wake;
-    // if (name == "turn") return turn;
-    // if (name == "clicking") return clicking;
-    // if (name == "counting") return counting;
     return null;
   }
 
