@@ -26,6 +26,10 @@ export default defineConfig({
         target: "ws://localhost:3123",
         ws: true,
       },
+      "/auth": {
+        target: "http://localhost:3123",
+        changeOrigin: true,
+      },
     },
   },
 });

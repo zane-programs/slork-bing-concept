@@ -67,11 +67,6 @@ export function pitchMultiplyToSemis(mult: number): number {
 const NUMBERS_WEBM_URL = "/numbers.webm";
 const NUMBERS_MP3_URL = "/numbers.mp3";
 
-function deviceSpeaks(idx: number, D: number, b: number): boolean {
-  if (D <= 0) return false;
-  return idx === truemod(b, D);
-}
-
 // n changes apply at the next cycle boundary so we don't cut a count mid-cycle
 export default function Counting({ data }: { data: MovementData["counting"] }) {
   const clampN = (v: number) =>
@@ -114,8 +109,7 @@ export default function Counting({ data }: { data: MovementData["counting"] }) {
     }
     hasTickedRef.current = true;
     const n = activeNRef.current;
-    if (e.myIndex === null) return;
-    if (!deviceSpeaks(e.myIndex, e.deviceCount, e.beat)) return;
+    if (!e.isMine) return;
     const cyclePos = truemod(e.beat, n);
 
     if (!bufferRef.current && !loadingRef.current) {

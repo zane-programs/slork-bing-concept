@@ -1,12 +1,7 @@
 // heavy thanks to dr. matt et al for this epic protocol
 // https://ccrma.stanford.edu/groups/osc/spec-1_0.html
 
-import dgram from "node:dgram";
-
-const OSC_PORT = Number(process.env.OSC_PORT ?? 5461);
-const OSC_BROADCAST = process.env.OSC_BROADCAST ?? "255.255.255.255";
-
-type OscArg =
+export type OscArg =
   | { type: "i"; value: number }
   | { type: "f"; value: number }
   | { type: "s"; value: string };
@@ -16,12 +11,12 @@ function pad4(buf: Buffer): Buffer {
   return rem === 0 ? buf : Buffer.concat([buf, Buffer.alloc(4 - rem)]);
 }
 
-// OSC strings are null-terminated then padded to a 4-byte boundary.
+// OSC strings are null-terminated then padded to a 4-byte boundary
 function ostr(s: string): Buffer {
   return pad4(Buffer.from(s + "\0", "utf8"));
 }
 
-function encode(address: string, args: OscArg[]): Buffer {
+export function encode(address: string, args: OscArg[] = []): Buffer {
   const parts: Buffer[] = [
     ostr(address),
     ostr("," + args.map((a) => a.type).join("")),
@@ -42,20 +37,21 @@ function encode(address: string, args: OscArg[]): Buffer {
   return Buffer.concat(parts);
 }
 
-const sock = dgram.createSocket("udp4");
-sock.on("error", (err) => console.error("[osc] socket error:", err.message));
+export function readString(buffer: Buffer, offset: number = 0) {
+  let end = offset;
+  while (buffer[end] !== 0x00) end++;
 
-let oscReady = false;
-sock.bind(0, () => {
-  sock.setBroadcast(true);
-  oscReady = true;
-  console.log(`[osc] broadcasting to ${OSC_BROADCAST}:${OSC_PORT}`);
-});
+  const val = buffer.toString("utf8", offset, end);
+  const lenRaw = end - offset + 1;
+  const lenPadded = Math.ceil(lenRaw / 4) * 4;
 
-export function osend(address: string, args: OscArg[] = []) {
-  if (!oscReady) return;
-  const buf = encode(address, args);
-  sock.send(buf, OSC_PORT, OSC_BROADCAST, (err) => {
-    if (err) console.error("[osc] send error:", err.message);
-  });
+  return { val, nextOffset: offset + lenPadded };
+}
+
+export function readInt32(buffer: Buffer, offset: number = 0) {
+  return { val: buffer.readInt32BE(offset), nextOffset: offset + 4 };
+}
+
+export function readFloat32(buffer: Buffer, offset: number = 0) {
+  return { val: buffer.readFloatBE(offset), nextOffset: offset + 4 };
 }

@@ -1,0 +1,58 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 1rem;
+
+  background: #000;
+  color: #fff;
+  font-family: var(--font-sans);
+}
+
+.title {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.passInput {
+  font-size: 28px;
+  padding: 8px 12px;
+  width: 12ch;
+  text-align: center;
+  letter-spacing: 0.2em;
+  background: transparent;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+}
+
+.submit {
+  font-size: 24px;
+  padding: 12px 24px;
+  background: transparent;
+  color: currentColor;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.submit:hover:not(:disabled) {
+  background: #fff;
+  color: #000;
+}
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 14px;
+  min-height: 1.2em;
+}

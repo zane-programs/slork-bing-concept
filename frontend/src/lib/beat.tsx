@@ -8,7 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import type { BeatState, ClientId, DeviceInfo } from "@shared/types";
+import type {
+  BeatState,
+  ClientId,
+  DeviceInfo,
+  EnabledKinds,
+} from "@shared/types";
 import { getAudioCtx } from "./audio";
 import styles from "./beat.module.css";
 
@@ -25,8 +30,6 @@ export interface ScheduledBeat {
   activeIndex: number;
   activeClientId: ClientId;
   isMine: boolean;
-  myIndex: number | null;
-  deviceCount: number;
   periodSec: number;
 }
 
@@ -65,6 +68,7 @@ export function useBeatSubscription(cb: Subscriber): void {
 interface UseBeatParams {
   beat: BeatState;
   devices: DeviceInfo[];
+  enabledKinds: EnabledKinds;
   getServerTime: () => number;
   myClientId: ClientId | null;
 }
@@ -85,12 +89,14 @@ interface Pending {
 export function useBeat({
   beat,
   devices,
+  enabledKinds,
   getServerTime,
   myClientId,
 }: UseBeatParams) {
   const [tick, setTick] = useState<BeatTick | null>(null);
 
   const devicesRef = useRef(devices);
+  const enabledKindsRef = useRef(enabledKinds);
   const myIdRef = useRef(myClientId);
   const beatRef = useRef<BeatState>(beat);
 
@@ -98,10 +104,14 @@ export function useBeat({
     devicesRef.current = devices;
   }, [devices]);
   useEffect(() => {
+    enabledKindsRef.current = enabledKinds;
+  }, [enabledKinds]);
+  useEffect(() => {
     myIdRef.current = myClientId;
   }, [myClientId]);
   useEffect(() => {
     beatRef.current = beat;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!beat) setTick(null);
   }, [beat]);
 
@@ -123,17 +133,16 @@ export function useBeat({
     let schedulerTimer: ReturnType<typeof setTimeout> | null = null;
     let visualRaf = 0;
 
-    const activeFor = (b: number): DeviceInfo | null => {
-      const list = devicesRef.current;
-      if (list.length === 0) return null;
-      const slot = ((b % list.length) + list.length) % list.length;
-      return list[slot];
+    // beat rotation pool: only clients whose kind is currently enabled
+    const activePool = (): DeviceInfo[] => {
+      const ek = enabledKindsRef.current;
+      return devicesRef.current.filter((d) => ek[d.kind]);
     };
-    const findMyIndex = (): number | null => {
-      const myId = myIdRef.current;
-      if (!myId) return null;
-      const self = devicesRef.current.find((d) => d.clientId === myId);
-      return self ? self.index : null;
+    const activeFor = (b: number): DeviceInfo | null => {
+      const pool = activePool();
+      if (pool.length === 0) return null;
+      const slot = ((b % pool.length) + pool.length) % pool.length;
+      return pool[slot];
     };
 
     const schedulerTick = () => {
@@ -215,8 +224,6 @@ export function useBeat({
             activeIndex: active.index,
             activeClientId: active.clientId,
             isMine: active.clientId === myIdRef.current,
-            myIndex: findMyIndex(),
-            deviceCount: devicesRef.current.length,
             periodSec,
           };
           for (const s of Array.from(subscribersRef.current)) s(event);

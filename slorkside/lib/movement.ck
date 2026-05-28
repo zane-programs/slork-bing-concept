@@ -1,15 +1,5 @@
 @import "gt.ck"
 
-// base class for the slork-side movements. each one is a GGen so it can
-// hang its own visuals off of `this`. subclass sets up audio + visuals in
-// the ctor, then reacts to whatever the conductor sends via OSC.
-//
-// lifecycle:
-//   enter()  -> movement just became active. attach to scene, set up.
-//   leave()  -> hand off. ramp bus down, then detach
-//   tick()   -> per chugl frame, called from slorkstation main loop.
-//               (tick not update bc GGen.update(float dt) already exists)
-//   on_beat  -> conductor /beat fires, only the active movement gets it
 public class Movement extends GGen {
   // master fader, every movement patches its sound through this
   Envelope bus => dac;
@@ -50,7 +40,7 @@ public class Movement extends GGen {
   }
 
   //default no-ops, subclasses override what they care about
-  fun void on_beat(int beat) {}
+  fun void on_beat(int beat, int is_mine) {}
   fun void tick() {}
   fun void _on_enter() {}
   fun void _on_leave() {}
@@ -66,5 +56,20 @@ public class Movement extends GGen {
   fun float gt_unipolar(float v, float lo, float hi) {
     Math.clampf(v, 0., 1.) => float t;
     return lo + t * (hi - lo);
+  }
+
+  fun void drive_bus(float cap) {
+    if (!active) {
+      bus.target(0.);
+      return;
+    }
+    if (gt == null) {
+      // edge case, no gametrak controller
+      bus.target(cap);
+      return;
+    }
+    Math.max(gt.left_z(), gt.right_z()) => float z;
+    Math.clampf(z, 0., 1.) => z;
+    bus.target(cap * z);
   }
 }

@@ -1,6 +1,11 @@
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
-import type { BeatState, DeviceInfo } from "@shared/types";
+import type {
+  BeatState,
+  DeviceInfo,
+  EnabledKinds,
+  ToggleKind,
+} from "@shared/types";
 import {
   MOVEMENT_IDS,
   MOVEMENT_NAMES,
@@ -23,7 +28,11 @@ import {
   pitchMultiplyToSemis,
   semisToPitchMultiply,
 } from "../movements/counting";
-import { intensityToBpm } from "../movements/clicking";
+import {
+  CLICKING_GAIN_MAX,
+  CLICKING_GAIN_MIN,
+  intensityToBpm,
+} from "../movements/clicking";
 import {
   WAKE_BPM_MAX,
   WAKE_BPM_MIN,
@@ -40,40 +49,56 @@ import {
   TURN_VIBRATO_CENTS_MAX,
   TURN_VIBRATO_CENTS_MIN,
 } from "../movements/turn";
+import {
+  RING_GAIN_MAX,
+  RING_GAIN_MIN,
+  RING_NOISE_MAX,
+  RING_NOISE_MIN,
+} from "../movements/ring";
 import styles from "./conductor.module.css";
 
 interface Props {
   state: MovementState;
   isConnected: boolean;
+  isBridgeConnected: boolean;
   clientId: ClientId | null;
   index: number | null;
   devices: DeviceInfo[];
   beat: BeatState;
   tick: BeatTick | null;
+  enabledKinds: EnabledKinds;
   setMovement: (movement: MovementId | null) => void;
   updateMovement: <K extends MovementId>(
     movement: K,
-    data: Partial<MovementData[K]>
+    data: Partial<MovementData[K]>,
   ) => void;
   setBeat: (bpm: number | null) => void;
+  setEnabledKinds: (enabled: EnabledKinds) => void;
 }
 
 export function ConductorPanel({
   state,
   isConnected,
+  isBridgeConnected,
   clientId,
   index,
   devices,
   beat,
   tick,
+  enabledKinds,
   setMovement,
   updateMovement,
   setBeat,
+  setEnabledKinds,
 }: Props) {
   return (
     <div>
       <h1>Conductor</h1>
-      <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
+      <p>
+        Cloud: {isConnected ? "connected" : "disconnected"}
+        <br />
+        Bridge: {isBridgeConnected ? "connected" : "disconnected"}
+      </p>
       <p>
         Your id: {clientId ?? "…"}
         {index !== null ? ` · index #${index}` : ""}
@@ -106,12 +131,142 @@ export function ConductorPanel({
       ) : null}
 
       <BeatControls beat={beat} setBeat={setBeat} />
+      <EnabledKindsControls
+        enabledKinds={enabledKinds}
+        setEnabledKinds={setEnabledKinds}
+      />
       <DeviceRoster
         devices={devices}
         myClientId={clientId}
         activeClientId={tick?.activeClientId ?? null}
       />
     </div>
+  );
+}
+
+type KindsMode = "live" | "staging";
+
+const KIND_LABELS: Record<ToggleKind, string> = {
+  audience: "Audience phones",
+  member: "SLOrk phones (members)",
+  slorkstation: "SLOrkstations (OSC)",
+};
+
+const KIND_ORDER: ToggleKind[] = ["audience", "member", "slorkstation"];
+
+function EnabledKindsControls({
+  enabledKinds,
+  setEnabledKinds,
+}: {
+  enabledKinds: EnabledKinds;
+  setEnabledKinds: (enabled: EnabledKinds) => void;
+}) {
+  const [mode, setMode] = useState<KindsMode>("live");
+  const [draft, setDraft] = useState<EnabledKinds>(enabledKinds);
+
+  // in live mode the draft tracks the server. in staging its a local edit
+  useEffect(() => {
+    if (mode !== "live") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraft((prev) => {
+      if (KIND_ORDER.every((k) => prev[k] === enabledKinds[k])) return prev;
+      return enabledKinds;
+    });
+  }, [enabledKinds, mode]);
+
+  const handleModeChange = (next: KindsMode) => {
+    if (next === "staging") {
+      // seed the draft from current server state
+      setDraft(enabledKinds);
+    }
+    setMode(next);
+  };
+
+  const toggle = (k: ToggleKind) => {
+    const next = { ...draft, [k]: !draft[k] };
+    setDraft(next);
+    if (mode === "live") setEnabledKinds(next);
+  };
+
+  const hasPendingChanges =
+    mode === "staging" &&
+    KIND_ORDER.some((k) => draft[k] !== enabledKinds[k]);
+
+  const fire = () => {
+    if (!hasPendingChanges) return;
+    setEnabledKinds(draft);
+  };
+
+  return (
+    <section className={styles.section}>
+      <h2>Active groups</h2>
+      <div className={styles.sliderRow}>
+        <span className={styles.sliderLabel}>Mode</span>
+        <select
+          value={mode}
+          onChange={(e) => handleModeChange(e.target.value as KindsMode)}
+        >
+          <option value="live">Live (auto-send)</option>
+          <option value="staging">Staging (fire manually)</option>
+        </select>
+      </div>
+      <ul className={styles.kindList}>
+        {KIND_ORDER.map((k) => {
+          const liveOn = enabledKinds[k];
+          const draftOn = draft[k];
+          const diff = mode === "staging" && draftOn !== liveOn;
+          return (
+            <li key={k} className={styles.kindRow}>
+              <label className={styles.kindLabel}>
+                <input
+                  type="checkbox"
+                  checked={draftOn}
+                  onChange={() => toggle(k)}
+                />
+                <span>{KIND_LABELS[k]}</span>
+              </label>
+              <span
+                className={clsx(
+                  styles.kindStatus,
+                  diff && draftOn && styles.variantAdded,
+                  diff && !draftOn && styles.variantRemoved,
+                  !diff && liveOn && styles.variantLive,
+                )}
+              >
+                {mode === "staging"
+                  ? diff
+                    ? draftOn
+                      ? `staged: ON (live: OFF)`
+                      : `staged: OFF (live: ON)`
+                    : draftOn
+                    ? "ON"
+                    : "OFF"
+                  : liveOn
+                  ? "ON"
+                  : "OFF"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {mode === "staging" ? (
+        <div className={styles.fireRow}>
+          <button
+            type="button"
+            className={styles.fireButton}
+            onClick={fire}
+            disabled={!hasPendingChanges}
+          >
+            Fire
+          </button>
+          <span className={styles.fireHint}>
+            {hasPendingChanges
+              ? "Broadcast staged changes"
+              : "No staged changes"}
+          </span>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -178,10 +333,10 @@ function DeviceRoster({
                 key={d.clientId}
                 className={clsx(
                   styles.rosterItem,
-                  isActive && styles.rosterItemActive
+                  isActive && styles.rosterItemActive,
                 )}
               >
-                #{d.index} - {d.clientId}
+                #{d.index} [{d.kind}] - {d.clientId}
                 {isMe ? " (you)" : ""}
                 {isActive ? " ◀ active" : ""}
               </li>
@@ -220,6 +375,7 @@ function MovementControls({
     return (
       <ClickingControls
         intensity={state.data.intensity}
+        gain={state.data.gain}
         updateMovement={updateMovement}
         setBeat={setBeat}
       />
@@ -238,7 +394,82 @@ function MovementControls({
   if (state.movement === "turn") {
     return <TurnControls data={state.data} updateMovement={updateMovement} />;
   }
+  if (state.movement === "ring") {
+    return <RingControls data={state.data} updateMovement={updateMovement} />;
+  }
   return null;
+}
+
+function RingControls({
+  data,
+  updateMovement,
+}: {
+  data: MovementData["ring"];
+  updateMovement: Props["updateMovement"];
+}) {
+  return (
+    <div className={styles.countingGrid}>
+      <RingGainSlider gain={data.gain} updateMovement={updateMovement} />
+      <RingNoiseSlider noise={data.noise} updateMovement={updateMovement} />
+    </div>
+  );
+}
+
+function RingGainSlider({
+  gain,
+  updateMovement,
+}: {
+  gain: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
+    updateMovement("ring", { gain: v }),
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Gain</span>
+      <input
+        type="range"
+        min={RING_GAIN_MIN}
+        max={RING_GAIN_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => {
+          unlockAudio();
+          onChange(Number(e.target.value));
+        }}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}×</span>
+    </div>
+  );
+}
+
+function RingNoiseSlider({
+  noise,
+  updateMovement,
+}: {
+  noise: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(noise, (v) =>
+    updateMovement("ring", { noise: v }),
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Noise</span>
+      <input
+        type="range"
+        min={RING_NOISE_MIN}
+        max={RING_NOISE_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}</span>
+    </div>
+  );
 }
 
 function TurnControls({
@@ -250,7 +481,7 @@ function TurnControls({
 }) {
   // live-only: any toggle ships immediately (turn voices are per-touch)
   const [toggledNotes, setToggledNotes] = useState<Set<string>>(
-    () => new Set(data.activeNoteNames)
+    () => new Set(data.activeNoteNames),
   );
 
   useEffect(() => {
@@ -322,7 +553,7 @@ function TurnPalettePiano({
             className={clsx(
               styles.key,
               toggledNotes.has(k) && styles.toggled,
-              toggledNotes.has(k) && styles.variantLive
+              toggledNotes.has(k) && styles.variantLive,
             )}
           />
         ))}
@@ -338,11 +569,11 @@ function TurnPalettePiano({
               className={clsx(
                 styles.key,
                 toggledNotes.has(k) && styles.toggled,
-                toggledNotes.has(k) && styles.variantLive
+                toggledNotes.has(k) && styles.variantLive,
               )}
               style={{ "--idx": i } as React.CSSProperties}
             />
-          ) : null
+          ) : null,
         )}
       </div>
     </div>
@@ -357,7 +588,7 @@ function TurnGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("turn", { gain: v })
+    updateMovement("turn", { gain: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -384,7 +615,7 @@ function TurnVibratoSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(vibratoMaxCents, (v) =>
-    updateMovement("turn", { vibratoMaxCents: v })
+    updateMovement("turn", { vibratoMaxCents: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -411,7 +642,7 @@ function TurnTimbreSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(timbreAmount, (v) =>
-    updateMovement("turn", { timbreAmount: v })
+    updateMovement("turn", { timbreAmount: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -440,7 +671,7 @@ function TurnOctaveSelect({
   const clampOct = (v: number) =>
     Math.max(
       TURN_OCTAVE_MIN,
-      Math.min(TURN_OCTAVE_MAX, Math.floor(v) || TURN_OCTAVE_MIN)
+      Math.min(TURN_OCTAVE_MAX, Math.floor(v) || TURN_OCTAVE_MIN),
     );
   return (
     <div className={styles.sliderRow}>
@@ -477,7 +708,7 @@ function WakeControls({
 }) {
   const [mode, setMode] = useState<WakeMode>("live");
   const [toggledNotes, setToggledNotes] = useState<Set<string>>(
-    () => new Set(data.activeNoteNames)
+    () => new Set(data.activeNoteNames),
   );
 
   useEffect(() => {
@@ -567,7 +798,7 @@ function keyVariant(
   note: string,
   mode: WakeMode,
   toggled: Set<string>,
-  baseline: Set<string>
+  baseline: Set<string>,
 ): KeyVariant {
   const inToggled = toggled.has(note);
   if (mode === "live") return inToggled ? "live" : "off";
@@ -629,7 +860,7 @@ function WakePiano({
                 idx={i}
               />
             ) : // null for skipped key (there is no black key between e and f)
-            null
+            null,
           )}
         </div>
       </div>
@@ -681,7 +912,7 @@ function WakePianoKey({
       className={clsx(
         styles.key,
         variant !== "off" && styles.toggled,
-        variantClass
+        variantClass,
       )}
       role="button"
       onClick={onToggle}
@@ -703,7 +934,7 @@ function WakeBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 60;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v)
+    setBeat(v),
   );
   return (
     <div className={styles.sliderRow}>
@@ -733,7 +964,7 @@ function WakeGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("wake", { gain: v })
+    updateMovement("wake", { gain: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -755,10 +986,12 @@ function WakeGainSlider({
 // coalesce slider scrubs per rAF so we don't flood the socket
 function ClickingControls({
   intensity,
+  gain,
   updateMovement,
   setBeat,
 }: {
   intensity: number;
+  gain: number;
   updateMovement: Props["updateMovement"];
   setBeat: Props["setBeat"];
 }) {
@@ -809,22 +1042,55 @@ function ClickingControls({
 
   const bpm = intensityToBpm(localValue);
   return (
-    <div className={styles.intensityRow}>
-      <label>
-        Intensity:{" "}
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={localValue}
-          onChange={onChange}
-          className={styles.intensitySlider}
-        />
-      </label>{" "}
-      <span className={styles.intensityReadout}>
-        {localValue.toFixed(2)} → {bpm} bpm
-      </span>
+    <div className={styles.countingGrid}>
+      <ClickingGainSlider gain={gain} updateMovement={updateMovement} />
+      <div className={styles.intensityRow}>
+        <label>
+          Intensity:{" "}
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={localValue}
+            onChange={onChange}
+            className={styles.intensitySlider}
+          />
+        </label>{" "}
+        <span className={styles.intensityReadout}>
+          {localValue.toFixed(2)} → {bpm} bpm
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ClickingGainSlider({
+  gain,
+  updateMovement,
+}: {
+  gain: number;
+  updateMovement: Props["updateMovement"];
+}) {
+  const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
+    updateMovement("clicking", { gain: v }),
+  );
+  return (
+    <div className={styles.sliderRow}>
+      <span className={styles.sliderLabel}>Gain</span>
+      <input
+        type="range"
+        min={CLICKING_GAIN_MIN}
+        max={CLICKING_GAIN_MAX}
+        step={0.01}
+        value={value}
+        onChange={(e) => {
+          unlockAudio();
+          onChange(Number(e.target.value));
+        }}
+        className={styles.sliderInput}
+      />
+      <span className={styles.sliderReadout}>{value.toFixed(2)}×</span>
     </div>
   );
 }
@@ -896,7 +1162,7 @@ function CountingControls({
 
 function useCoalescedSlider<T>(
   serverValue: T,
-  send: (v: T) => void
+  send: (v: T) => void,
 ): {
   value: T;
   onChange: (v: T) => void;
@@ -950,7 +1216,7 @@ function CountingBpmSlider({
 }) {
   const serverBpm = beat?.bpm ?? 100;
   const { value, onChange } = useCoalescedSlider<number>(serverBpm, (v) =>
-    setBeat(v)
+    setBeat(v),
   );
   return (
     <div className={styles.sliderRow}>
@@ -980,7 +1246,7 @@ function CountingGainSlider({
   updateMovement: Props["updateMovement"];
 }) {
   const { value, onChange } = useCoalescedSlider<number>(gain, (v) =>
-    updateMovement("counting", { gain: v })
+    updateMovement("counting", { gain: v }),
   );
   return (
     <div className={styles.sliderRow}>
@@ -1008,7 +1274,7 @@ function CountingPitchSlider({
 }) {
   const serverSemis = pitchMultiplyToSemis(pitchMultiply);
   const { value, onChange } = useCoalescedSlider<number>(serverSemis, (v) =>
-    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) })
+    updateMovement("counting", { pitchMultiply: semisToPitchMultiply(v) }),
   );
   const mult = semisToPitchMultiply(value);
   const sign = value > 0 ? "+" : "";

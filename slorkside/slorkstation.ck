@@ -6,15 +6,22 @@
 // performer drives vol/tone/vibrato/pitch through a gametrak (or kb-sim
 // fallback) shared across all four
 
+Std.atoi(me.arg(0)) => int device_idx;
+<<< "[init] Welcome, device", device_idx >>>;
+
 GameTrak gt;
 WakeMovement wake;
+ClickingMovement clicking;
 
 wake.set_gt(gt);
+clicking.set_gt(gt);
 
-OscRouter router(wake);
+OscRouter router(wake, clicking);
+router.register(device_idx);
 router.start();
 
 GG.windowTitle("SLOrkStation");
+
 
 //only the active movement ticks. inactive ones sit silent (bus env @ 0)
 while (true) {
