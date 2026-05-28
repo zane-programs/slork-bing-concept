@@ -88,9 +88,9 @@ public class OscRouter {
       }
     }
     else if (m.address == "/register/pong") {
-      // ACK from bridge telling us we're good and registered
+      // ACK from bridge. heartbeats keep arriving; only log first transition.
       m.getInt(0) => int echoed_idx;
-      if (echoed_idx == device_idx) {
+      if (echoed_idx == device_idx && !_registration.is_registered) {
         _registration.set_registered();
         chout <= "[state] register success!" <= IO.newline();
       }
@@ -137,15 +137,15 @@ class RegistrationDoer {
   }
 
   fun void _register_loop(int device_idx) {
-    while (!is_registered) {
+    while (true) {
       OscOut xmit;
       xmit.dest(hostname, port);
       xmit.start("/register/ping");
       device_idx => xmit.add;
       xmit.send();
 
-      200::ms => now;
+      if (is_registered) 1::second => now;
+      else 200::ms => now;
     }
-    me.exit();
   }
 }

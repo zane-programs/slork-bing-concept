@@ -47,58 +47,87 @@ function pitchClassMask(names: string[] | undefined): number {
   return mask;
 }
 
-function emitMovement(id: MovementId, data: MovementData[MovementId]) {
+function emitMovement(
+  id: MovementId,
+  data: MovementData[MovementId],
+  deviceAddresses: string[],
+) {
+  console.log("emitMovement", deviceAddresses);
   if (id === "wake") {
     const d = data as MovementData["wake"];
-    osend("/movement/wake", [
-      { type: "f", value: d.gain },
-      { type: "i", value: pitchClassMask(d.activeNoteNames) },
-    ]);
+    osend(
+      "/movement/wake",
+      [
+        { type: "f", value: d.gain },
+        { type: "i", value: pitchClassMask(d.activeNoteNames) },
+      ],
+      deviceAddresses,
+    );
   } else if (id === "turn") {
     const d = data as MovementData["turn"];
-    osend("/movement/turn", [
-      { type: "f", value: d.gain },
-      { type: "s", value: (d.activeNoteNames ?? []).join(",") },
-      { type: "i", value: d.octave },
-      { type: "f", value: d.vibratoMaxCents },
-      { type: "f", value: d.timbreAmount },
-    ]);
+    osend(
+      "/movement/turn",
+      [
+        { type: "f", value: d.gain },
+        { type: "s", value: (d.activeNoteNames ?? []).join(",") },
+        { type: "i", value: d.octave },
+        { type: "f", value: d.vibratoMaxCents },
+        { type: "f", value: d.timbreAmount },
+      ],
+      deviceAddresses,
+    );
   } else if (id === "clicking") {
     const d = data as MovementData["clicking"];
-    osend("/movement/clicking", [
-      { type: "f", value: d.gain },
-      { type: "f", value: d.intensity },
-    ]);
+    osend(
+      "/movement/clicking",
+      [
+        { type: "f", value: d.gain },
+        { type: "f", value: d.intensity },
+      ],
+      deviceAddresses,
+    );
   } else if (id === "counting") {
     const d = data as MovementData["counting"];
-    osend("/movement/counting", [
-      { type: "i", value: d.n },
-      { type: "f", value: d.gain },
-      { type: "f", value: d.pitchMultiply },
-    ]);
+    osend(
+      "/movement/counting",
+      [
+        { type: "i", value: d.n },
+        { type: "f", value: d.gain },
+        { type: "f", value: d.pitchMultiply },
+      ],
+      deviceAddresses,
+    );
   }
 }
 
-function emitState(state: MovementState) {
+function emitState(state: MovementState, deviceAddresses: string[]) {
   if (!state) {
-    osend("/state/none");
+    osend("/state/none", [], deviceAddresses);
     return;
   }
-  osend("/state/movement", [{ type: "s", value: state.movement }]);
-  emitMovement(state.movement, state.data);
+  osend(
+    "/state/movement",
+    [{ type: "s", value: state.movement }],
+    deviceAddresses,
+  );
+  emitMovement(state.movement, state.data, deviceAddresses);
 }
 
-function emitBeat(beat: BeatState) {
+function emitBeat(beat: BeatState, deviceAddresses: string[]) {
   if (!beat) {
-    osend("/beatinfo/clear");
+    osend("/beatinfo/clear", [], deviceAddresses);
     return;
   }
-  osend("/beatinfo", [
-    // NOTE: i am sending anchorMs as a string!
-    { type: "s", value: String(beat.anchorMs) },
-    { type: "f", value: beat.bpm },
-    { type: "i", value: beat.originBeat ?? 0 },
-  ]);
+  osend(
+    "/beatinfo",
+    [
+      // NOTE: i am sending anchorMs as a string!
+      { type: "s", value: String(beat.anchorMs) },
+      { type: "f", value: beat.bpm },
+      { type: "i", value: beat.originBeat ?? 0 },
+    ],
+    deviceAddresses,
+  );
 }
 
 export interface BridgeServerOptions {
@@ -116,6 +145,8 @@ export class BridgeServer {
   private idForSocket = new WeakMap<WebSocket, ClientId>();
 
   private oscClients = new Map<number, string>();
+  private oscLastSeen = new Map<number, number>();
+  private static readonly STATION_TTL_MS = 3000;
   private oscReceiver = new OscReceiver();
 
   private metronome = new Metronome();
@@ -156,11 +187,11 @@ export class BridgeServer {
     this.control.onEnabledKindsChange((enabled) => {
       // replay state on enable so ChucK stations catch up; clear on disable.
       if (enabled.slorkstation) {
-        emitState(this.control.state);
-        emitBeat(this.control.beat);
+        this.emitState(this.control.state);
+        this.emitBeat(this.control.beat);
       } else {
-        osend("/state/none");
-        osend("/beatinfo/clear");
+        this.emitState(null);
+        this.emitBeat(null);
       }
       this.broadcast({ type: "enabled_kinds", enabled });
     });
@@ -175,14 +206,37 @@ export class BridgeServer {
 
     setInterval(() => {
       if (!this.control.enabledKinds.slorkstation) return;
-      emitState(this.control.state);
-      emitBeat(this.control.beat);
+      this.emitState(this.control.state);
+      this.emitBeat(this.control.beat);
     }, heartbeatMs);
+
+    setInterval(() => {
+      const now = Date.now();
+      for (const [idx, last] of this.oscLastSeen) {
+        if (now - last > BridgeServer.STATION_TTL_MS) {
+          this.oscClients.delete(idx);
+          this.oscLastSeen.delete(idx);
+          console.log(`[bridge] station ${idx} evicted (silent ${now - last}ms)`);
+        }
+      }
+    }, 1000);
 
     this.httpServer.listen(opts.port, () => {
       console.log(`[bridge] http  http://localhost:${opts.port}`);
       console.log(`[bridge] ws    ws://localhost:${opts.port}${path}`);
     });
+  }
+
+  private emitState(state: MovementState) {
+    emitState(state, Array.from(this.oscClients.values()));
+  }
+
+  private emitMovement(id: MovementId, data: MovementData[MovementId]) {
+    emitMovement(id, data, Array.from(this.oscClients.values()));
+  }
+
+  private emitBeat(beat: BeatState) {
+    emitBeat(beat, Array.from(this.oscClients.values()));
   }
 
   private slorkstationEnabled(): boolean {
@@ -191,21 +245,22 @@ export class BridgeServer {
 
   private emitStateGated(state: MovementState) {
     if (!this.slorkstationEnabled()) return;
-    emitState(state);
+    this.emitState(state);
   }
 
   private emitMovementGated(id: MovementId, data: MovementData[MovementId]) {
     if (!this.slorkstationEnabled()) return;
-    emitMovement(id, data);
+    this.emitMovement(id, data);
   }
 
   private emitBeatGated(beat: BeatState) {
     if (!this.slorkstationEnabled()) return;
-    emitBeat(beat);
+    this.emitBeat(beat);
   }
 
   private handleOscRegister(idx: number, address: string) {
     this.oscClients.set(idx, address);
+    this.oscLastSeen.set(idx, Date.now());
   }
 
   private handleHttp(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -374,11 +429,16 @@ export class BridgeServer {
     if (this.oscClients.size === 0) return;
     const indices = [...this.oscClients.keys()].sort((a, b) => a - b);
     const targetIdx = indices[beat.beatIndex % indices.length];
-    osend("/beatmetro", [
-      { type: "i", value: targetIdx },
-      { type: "i", value: beat.beatIndex },
-      { type: "f", value: beat.bpm },
-    ]);
+    console.log("Beat for device", targetIdx);
+    osend(
+      "/beatmetro",
+      [
+        { type: "i", value: targetIdx },
+        { type: "i", value: beat.beatIndex },
+        { type: "f", value: beat.bpm },
+      ],
+      Array.from(this.oscClients.values()),
+    );
   }
 
   private send(socket: WebSocket, msg: ServerMessage) {

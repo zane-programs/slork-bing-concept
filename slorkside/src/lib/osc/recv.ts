@@ -53,6 +53,7 @@ export class OscReceiver extends EventEmitter {
     const { val: typeTag, nextOffset: dataOffset } = readString(msg, ttOffset);
 
     if (address === "/register/ping" && typeTag === ",i") {
+      console.log("register ping!");
       const { val: deviceIdx } = readInt32(msg, dataOffset);
       this.log(`register ping from device ${deviceIdx} (${rinfo.address})`);
 
